@@ -58,3 +58,56 @@ class Survey {
     );
   }
 }
+
+class SurveyQuestion {
+  final String id;
+  final String question;
+  final AnswerType answerType;
+  final List<String> options;
+
+  SurveyQuestion({
+    required this.id,
+    required this.question,
+    required this.answerType,
+    required this.options,
+  });
+
+  factory SurveyQuestion.fromJson(Map<String, dynamic> json) {
+    return SurveyQuestion(
+      id: json['id'] as String,
+      question: json['questiontitle'] as String,
+      answerType: AnswerTypeExtension.fromString(json['ansertype']),
+      options: (json['optionlist'] as String)
+          .split(',')
+          .map((opt) => opt.trim())
+          .toList(),
+    );
+  }
+}
+
+enum AnswerType {
+  InputField,
+  SelectBox,
+  RadioBox,
+  CheckBox,
+  InputBoxDate,
+}
+
+extension AnswerTypeExtension on AnswerType {
+  static AnswerType fromString(String value) {
+    switch (value) {
+      case '1':
+        return AnswerType.InputField;
+      case '2':
+        return AnswerType.SelectBox;
+      case '3':
+        return AnswerType.RadioBox;
+      case '4':
+        return AnswerType.CheckBox;
+      case '5':
+        return AnswerType.InputBoxDate;
+      default:
+        return AnswerType.InputField;
+    }
+  }
+}
