@@ -23,7 +23,7 @@ class SurveyPage extends StatefulWidget {
 
 class _SurveyPageState extends State<SurveyPage> {
   List<SurveyQuestion> surveyQuestions = [];
-  Map<String, dynamic> responses = {};
+  List<dynamic> responses = [];
   int currentQuestionIndex = 0;
 
   @override
@@ -46,6 +46,7 @@ class _SurveyPageState extends State<SurveyPage> {
         setState(() {
           surveyQuestions =
               data.map((item) => SurveyQuestion.fromJson(item)).toList();
+          responses = List.generate(surveyQuestions.length, (_) => null);
         });
       } else {
         print('Failed to fetch survey questions: ${response.statusCode}');
@@ -62,17 +63,7 @@ class _SurveyPageState extends State<SurveyPage> {
 
   void saveResponsesToLocal() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedResponses = prefs.getString('responses');
-
-    Map<String, dynamic> storedResponses = {};
-
-    if (savedResponses != null) {
-      storedResponses = json.decode(savedResponses);
-    }
-
-    storedResponses.addAll(responses);
-
-    prefs.setString('responses', json.encode(storedResponses));
+    prefs.setString('responses', json.encode(responses));
   }
 
   void loadResponsesFromLocal() async {
@@ -86,8 +77,6 @@ class _SurveyPageState extends State<SurveyPage> {
   void nextQuestion() {
     if (currentQuestionIndex < surveyQuestions.length - 1) {
       setState(() {
-        // Remove the response for the current question
-        responses.remove(surveyQuestions[currentQuestionIndex].id);
         currentQuestionIndex++;
       });
     }
@@ -103,11 +92,13 @@ class _SurveyPageState extends State<SurveyPage> {
 
   void showResultPage() {
     loadResponsesFromLocal();
-    Navigator.push(
+    final resultResponses =
+        responses.map((response) => response.toString()).toList();
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => ResultPage(
-          responses: responses,
+          responses: resultResponses,
           surveyQuestions: surveyQuestions,
         ),
       ),
@@ -117,7 +108,7 @@ class _SurveyPageState extends State<SurveyPage> {
   @override
   Widget build(BuildContext context) {
     if (surveyQuestions.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(),
       );
     }
@@ -126,10 +117,10 @@ class _SurveyPageState extends State<SurveyPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Survey Page'),
+        title: Text('Survey Page'),
       ),
       body: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -144,23 +135,23 @@ class _SurveyPageState extends State<SurveyPage> {
                   children: [
                     Text(
                       question.question,
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 20),
-                    buildResponseField(question),
+                    SizedBox(height: 20),
+                    buildResponseField(question, currentQuestionIndex),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 if (currentQuestionIndex > 0)
                   ElevatedButton(
                     onPressed: previousQuestion,
-                    child: const Text('Previous'),
+                    child: Text('Previous'),
                   ),
                 ElevatedButton(
                   onPressed: currentQuestionIndex == surveyQuestions.length - 1
@@ -180,44 +171,37 @@ class _SurveyPageState extends State<SurveyPage> {
     );
   }
 
-  Widget buildResponseField(SurveyQuestion question) {
-    // Implement response fields based on answer type
+  Widget buildResponseField(SurveyQuestion question, int index) {
     if (question.answerType == AnswerType.InputField) {
       return TextFormField(
         onChanged: (value) {
           setState(() {
-            responses[question.id] = value;
+            responses[index] = value;
           });
         },
         decoration: InputDecoration(
-          labelText: 'Your Answer', // Add a label for the input field
+          labelText: 'Your Answer',
           border: OutlineInputBorder(
-            // Add a border around the input field
             borderRadius: BorderRadius.circular(8.0),
           ),
-          contentPadding: const EdgeInsets.all(
-              12.0), // Add padding to the input field content
+          contentPadding: EdgeInsets.all(12.0),
         ),
       );
     } else if (question.answerType == AnswerType.SelectBox) {
-      return SingleChildScrollView(
-        // Wrap the DropdownButton in a SingleChildScrollView
-        child: DropdownButton<String>(
-          isExpanded:
-              true, // This allows the DropdownButton to take up available vertical space
-          items: question.options.map((option) {
-            return DropdownMenuItem<String>(
-              value: option,
-              child: Text(option),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              responses[question.id] = value;
-            });
-          },
-          value: responses[question.id],
-        ),
+      return DropdownButton<String>(
+        isExpanded: true,
+        items: question.options.map((option) {
+          return DropdownMenuItem<String>(
+            value: option,
+            child: Text(option),
+          );
+        }).toList(),
+        onChanged: (value) {
+          setState(() {
+            responses[index] = value;
+          });
+        },
+        value: responses[index],
       );
     } else if (question.answerType == AnswerType.RadioBox) {
       return Column(
@@ -225,10 +209,10 @@ class _SurveyPageState extends State<SurveyPage> {
           return RadioListTile(
             title: Text(option),
             value: option,
-            groupValue: responses[question.id],
+            groupValue: responses[index],
             onChanged: (value) {
               setState(() {
-                responses[question.id] = value;
+                responses[index] = value;
               });
             },
           );
@@ -239,16 +223,18 @@ class _SurveyPageState extends State<SurveyPage> {
         children: question.options.map((option) {
           return CheckboxListTile(
             title: Text(option),
-            value: responses[question.id]?.contains(option) ?? false,
+            value: responses[index]?.contains(option) ?? false,
             onChanged: (value) {
               setState(() {
+                final List<String>? currentResponse = responses[index];
                 if (value!) {
-                  responses[question.id] = [
-                    ...(responses[question.id] ?? []),
-                    option
-                  ];
+                  if (currentResponse == null) {
+                    responses[index] = [option];
+                  } else {
+                    currentResponse.add(option);
+                  }
                 } else {
-                  responses[question.id]?.remove(option);
+                  currentResponse?.remove(option);
                 }
               });
             },
@@ -259,14 +245,14 @@ class _SurveyPageState extends State<SurveyPage> {
       return Container(
         decoration: BoxDecoration(
           border: Border.all(
-            color: Colors.grey, // Add a border color
-            width: 1.0, // Add border width
+            color: Colors.grey,
+            width: 1.0,
           ),
           borderRadius: BorderRadius.circular(8.0),
         ),
         child: TextFormField(
           readOnly: true,
-          controller: TextEditingController(text: responses[question.id] ?? ''),
+          controller: TextEditingController(text: responses[index] ?? ''),
           onTap: () async {
             final DateTime? picked = await showDatePicker(
               context: context,
@@ -277,19 +263,19 @@ class _SurveyPageState extends State<SurveyPage> {
             if (picked != null) {
               final formattedDate = DateFormat('yyyy-MM-dd').format(picked);
               setState(() {
-                responses[question.id] = formattedDate;
+                responses[index] = formattedDate;
               });
             }
           },
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Select a date',
             contentPadding: EdgeInsets.all(12.0),
-            border: InputBorder.none, // Remove the default input border
+            border: InputBorder.none,
           ),
         ),
       );
     } else {
-      return const Text('Unsupported answer type');
+      return Text('Unsupported answer type');
     }
   }
 }

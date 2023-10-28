@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-
-import '../entites/survey_model.dart';
+import 'package:thesurvey/entites/survey_model.dart';
+import 'package:thesurvey/pages/home_page.dart';
 
 class ResultPage extends StatelessWidget {
-  final Map<String, dynamic> responses;
+  final List<dynamic> responses;
   final List<SurveyQuestion> surveyQuestions;
 
   ResultPage({required this.responses, required this.surveyQuestions});
@@ -12,13 +12,28 @@ class ResultPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Survey Results'),
+        title: Text('Survey Results'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HomePage(),
+                ),
+              );
+            },
+            icon: Icon(Icons.home),
+          ),
+        ],
       ),
       body: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: ListView(
-          children: surveyQuestions.map((question) {
-            final response = responses[question.id];
+          children: surveyQuestions.asMap().entries.map((entry) {
+            final index = entry.key;
+            final question = entry.value;
+            final response = responses[index];
             return Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -30,13 +45,13 @@ class ResultPage extends StatelessWidget {
                   children: [
                     Text(
                       'Question: ${question.question}',
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Text(
                       'Response: ${response ?? 'Response not provided'}',
-                      style: const TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
